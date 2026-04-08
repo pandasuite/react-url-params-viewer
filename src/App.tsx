@@ -33,6 +33,7 @@ type PageFrameProps = {
   children: ReactNode;
   ctaLabel: string;
   ctaHref: string;
+  ctaOnClick?: () => void;
 };
 
 type SchemePreset = {
@@ -257,6 +258,26 @@ function formatRelativeTime(isoValue: string | null) {
   }).format(date);
 }
 
+function toAbsoluteUrl(url: string) {
+  return new URL(url, window.location.href).toString();
+}
+
+function openExternalUrl(url: string) {
+  const absoluteUrl = toAbsoluteUrl(url);
+
+  try {
+    PandaBridge.send(PandaBridge.OPEN_URL, [absoluteUrl, true]);
+    return;
+  } catch {
+    // Standalone browser preview has no native host bridge.
+  }
+
+  const openedWindow = window.open(absoluteUrl, '_blank', 'noopener,noreferrer');
+  if (!openedWindow) {
+    window.location.href = absoluteUrl;
+  }
+}
+
 function StatusPill({ label, tone }: { label: string; tone: 'neutral' | 'success' | 'warning' }) {
   return <span className={`status-pill status-pill--${tone}`}>{label}</span>;
 }
@@ -277,7 +298,7 @@ function DocsLinks() {
   );
 }
 
-function PageFrame({ children, ctaLabel, ctaHref }: PageFrameProps) {
+function PageFrame({ children, ctaLabel, ctaHref, ctaOnClick }: PageFrameProps) {
   return (
     <div className="page-shell">
       <header className="header-bar">
@@ -286,7 +307,18 @@ function PageFrame({ children, ctaLabel, ctaHref }: PageFrameProps) {
             <img src={LOGO_PATH} alt="PandaSuite" />
           </a>
           <div className="header-bar__actions">
-            <a className="header-bar__cta" href={ctaHref}>
+            <a
+              className="header-bar__cta"
+              href={ctaHref}
+              onClick={(event) => {
+                if (!ctaOnClick) {
+                  return;
+                }
+
+                event.preventDefault();
+                ctaOnClick();
+              }}
+            >
               {ctaLabel}
             </a>
           </div>
@@ -309,7 +341,7 @@ function ViewerScreen() {
   const filledParams = useMemo(() => getFilledParams(entries), [entries]);
   const scheme = cleanValue(bridgeProperties.scheme) || searchParams.get('scheme') || 'app_scheme';
   const deeplink = useMemo(() => buildViewerDeeplink(scheme, entries), [entries, scheme]);
-  const launcherHref = useMemo(() => buildViewerLauncherHref(scheme, entries), [entries, scheme]);
+  const launcherHref = useMemo(() => toAbsoluteUrl(buildViewerLauncherHref(scheme, entries)), [entries, scheme]);
   const sourceLabel = prefersBridge ? 'PandaSuite bindings' : 'Browser preview';
   const lastSnapshot = useRef<string | null>(null);
   const [lastUpdateIso, setLastUpdateIso] = useState<string | null>(null);
@@ -342,8 +374,12 @@ function ViewerScreen() {
     }
   }, [deeplink, filledParams, lastUpdateIso, updateCount]);
 
+  function openLauncher() {
+    openExternalUrl(launcherHref);
+  }
+
   return (
-    <PageFrame ctaLabel="Open launcher" ctaHref={launcherHref}>
+    <PageFrame ctaLabel="Open launcher" ctaHref={launcherHref} ctaOnClick={openLauncher}>
       <main className="shell">
         <section className="hero">
           <div className="hero__inner">
@@ -352,9 +388,9 @@ function ViewerScreen() {
               Bind properties to the PandaSuite launch context and inspect incoming values through the bridge.
             </p>
             <div className="hero__actions">
-              <a className="button button--primary" href={launcherHref}>
+              <button type="button" className="button button--primary" onClick={openLauncher}>
                 Test app return
-              </a>
+              </button>
               <button
                 type="button"
                 className="button button--secondary"

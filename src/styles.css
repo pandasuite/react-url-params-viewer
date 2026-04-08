@@ -576,8 +576,12 @@ input::placeholder {
 }
 
 @media (max-width: 720px) {
+  .header-bar__inner {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  }
+
   .shell {
-    padding: 20px 16px 48px;
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 16px 48px;
   }
 
   .hero__title {
