@@ -63,6 +63,7 @@ const DOC_LINKS = {
   urlParameters: 'https://docs.pandasuite.com/essentials/project-properties/url-parameters/',
   webComponent: 'https://docs.pandasuite.com/essentials/components/web/',
 };
+const APP_BASE_PATH = import.meta.env.BASE_URL;
 const LOGO_PATH = `${import.meta.env.BASE_URL}assets/logo-pandasuite.svg`;
 
 function cleanValue(value: string | null | undefined) {
@@ -208,7 +209,7 @@ function buildViewerLauncherHref(scheme: string, entries: ParamEntry[]) {
     }
   });
 
-  return `${window.location.pathname}?${searchParams.toString()}`;
+  return `${APP_BASE_PATH}?${searchParams.toString()}`;
 }
 
 function buildLauncherHref(scheme: string, entries: LauncherParam[]) {
@@ -225,7 +226,7 @@ function buildLauncherHref(scheme: string, entries: LauncherParam[]) {
     }
   });
 
-  return `${window.location.pathname}?${searchParams.toString()}`;
+  return `${APP_BASE_PATH}?${searchParams.toString()}`;
 }
 
 function getPresetForScheme(scheme: string) {
@@ -303,7 +304,7 @@ function PageFrame({ children, ctaLabel, ctaHref, ctaOnClick }: PageFrameProps) 
     <div className="page-shell">
       <header className="header-bar">
         <div className="header-bar__inner">
-          <a className="topbar__brand" href="/">
+          <a className="topbar__brand" href={APP_BASE_PATH}>
             <img src={LOGO_PATH} alt="PandaSuite" />
           </a>
           <div className="header-bar__actions">
@@ -576,7 +577,7 @@ function LauncherScreen() {
   }
 
   return (
-    <PageFrame ctaLabel="Open viewer" ctaHref="/">
+    <PageFrame ctaLabel="Open viewer" ctaHref={APP_BASE_PATH}>
       <main className="shell">
         <section className="hero">
           <div className="hero__inner">
