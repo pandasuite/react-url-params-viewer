@@ -3,13 +3,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PandaBridge from 'pandasuite-bridge';
 import { PandaBridgeRoot, usePandaBridge } from 'pandasuite-bridge-react';
 
-const SLOT_COUNT = 6;
+const SLOT_NUMBERS = [1, 2, 3] as const;
 const RESERVED_SEARCH_PARAMS = new Set(['mode', 'scheme']);
 
-type BridgeProperties = Partial<Record<'title' | 'subtitle' | 'scheme', string>> &
-  Partial<Record<`param${number}Key` | `param${number}Value`, string>>;
+type SlotNumber = (typeof SLOT_NUMBERS)[number];
+type ParamValueId = `param${SlotNumber}`;
+
+type BridgeProperties = Partial<Record<'scheme' | ParamValueId, string>>;
 
 type ParamEntry = {
+  id: ParamValueId;
+  slotLabel: string;
+  value: string;
+  isFilled: boolean;
+};
+
+type LauncherParam = {
   id: string;
   key: string;
   value: string;
@@ -17,7 +26,7 @@ type ParamEntry = {
 
 type LauncherState = {
   scheme: string;
-  params: ParamEntry[];
+  params: LauncherParam[];
 };
 
 type PageFrameProps = {
@@ -54,7 +63,24 @@ const DOC_LINKS = {
   webComponent: 'https://docs.pandasuite.com/essentials/components/web/',
 };
 
-function createParamEntry(key = '', value = ''): ParamEntry {
+function cleanValue(value: string | null | undefined) {
+  return (value ?? '').trim();
+}
+
+function createSlotEntry(slot: SlotNumber, value = ''): ParamEntry {
+  return {
+    id: `param${slot}`,
+    slotLabel: `Parameter ${slot}`,
+    value,
+    isFilled: Boolean(cleanValue(value)),
+  } as ParamEntry;
+}
+
+function createDefaultEntries() {
+  return SLOT_NUMBERS.map((slot) => createSlotEntry(slot));
+}
+
+function createLauncherParam(key = '', value = ''): LauncherParam {
   return {
     id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
     key,
@@ -62,53 +88,84 @@ function createParamEntry(key = '', value = ''): ParamEntry {
   };
 }
 
-function cleanValue(value: string | null | undefined) {
-  return (value ?? '').trim();
+function updateFilledState(entry: ParamEntry): ParamEntry {
+  return {
+    ...entry,
+    isFilled: Boolean(cleanValue(entry.value)),
+  };
 }
 
-function buildEntries(properties: BridgeProperties, searchParams: URLSearchParams) {
-  const bridgedEntries: ParamEntry[] = [];
-
-  for (let index = 1; index <= SLOT_COUNT; index += 1) {
-    const key = cleanValue(properties[`param${index}Key`]);
-    const value = properties[`param${index}Value`] ?? '';
-
-    if (!key) {
-      continue;
+function getFilledParams(entries: ParamEntry[]) {
+  return entries.reduce<Record<string, string>>((result, entry) => {
+    if (cleanValue(entry.value)) {
+      result[entry.id] = entry.value;
     }
 
-    bridgedEntries.push(createParamEntry(key, value));
-  }
+    return result;
+  }, {});
+}
 
-  if (bridgedEntries.length > 0) {
-    return bridgedEntries;
-  }
+function hasAnyParamValue(entries: ParamEntry[]) {
+  return entries.some((entry) => cleanValue(entry.value));
+}
 
-  const fallbackEntries: ParamEntry[] = [];
+function buildEntriesFromSearch(searchParams: URLSearchParams) {
+  const entries = createDefaultEntries();
+  SLOT_NUMBERS.forEach((slot, index) => {
+    const id = `param${slot}` as ParamValueId;
+    const value = searchParams.get(id);
+
+    if (value !== null) {
+      entries[index] = updateFilledState(createSlotEntry(slot, value));
+    }
+  });
+
+  return entries;
+}
+
+function buildLauncherParamsFromSearch(searchParams: URLSearchParams) {
+  const params: LauncherParam[] = [];
 
   searchParams.forEach((value, key) => {
     if (RESERVED_SEARCH_PARAMS.has(key)) {
       return;
     }
 
-    fallbackEntries.push(createParamEntry(key, value));
+    params.push(createLauncherParam(key, value));
   });
 
-  return fallbackEntries;
+  return params;
 }
 
-function buildDeeplink(scheme: string, entries: ParamEntry[]) {
+function hasBridgeLaunchData(properties: BridgeProperties) {
+  return (
+    properties.scheme !== undefined ||
+    SLOT_NUMBERS.some((slot) => {
+      const valueId = `param${slot}` as ParamValueId;
+      return properties[valueId] !== undefined;
+    })
+  );
+}
+
+function buildEntries(properties: BridgeProperties, searchParams: URLSearchParams, preferBridge: boolean) {
+  if (!preferBridge) {
+    return buildEntriesFromSearch(searchParams);
+  }
+
+  return SLOT_NUMBERS.map((slot) => {
+    const valueId = `param${slot}` as ParamValueId;
+    return updateFilledState(createSlotEntry(slot, properties[valueId] ?? ''));
+  });
+}
+
+function buildViewerDeeplink(scheme: string, entries: ParamEntry[]) {
   const normalizedScheme = cleanValue(scheme);
   const query = new URLSearchParams();
 
-  entries.forEach(({ key, value }) => {
-    const safeKey = cleanValue(key);
-
-    if (!safeKey) {
-      return;
+  entries.forEach((entry) => {
+    if (cleanValue(entry.value)) {
+      query.set(entry.id, entry.value);
     }
-
-    query.set(safeKey, value);
   });
 
   const base = normalizedScheme ? `${normalizedScheme}://` : 'app_scheme://';
@@ -117,7 +174,25 @@ function buildDeeplink(scheme: string, entries: ParamEntry[]) {
   return queryString ? `${base}?${queryString}` : base;
 }
 
-function buildLauncherHref(scheme: string, entries: ParamEntry[]) {
+function buildLauncherDeeplink(scheme: string, entries: LauncherParam[]) {
+  const normalizedScheme = cleanValue(scheme);
+  const query = new URLSearchParams();
+
+  entries.forEach((entry) => {
+    const safeKey = cleanValue(entry.key);
+
+    if (safeKey && cleanValue(entry.value)) {
+      query.set(safeKey, entry.value);
+    }
+  });
+
+  const base = normalizedScheme ? `${normalizedScheme}://` : 'app_scheme://';
+  const queryString = query.toString();
+
+  return queryString ? `${base}?${queryString}` : base;
+}
+
+function buildViewerLauncherHref(scheme: string, entries: ParamEntry[]) {
   const searchParams = new URLSearchParams();
   searchParams.set('mode', 'launcher');
 
@@ -125,14 +200,27 @@ function buildLauncherHref(scheme: string, entries: ParamEntry[]) {
     searchParams.set('scheme', cleanValue(scheme));
   }
 
-  entries.forEach(({ key, value }) => {
-    const safeKey = cleanValue(key);
-
-    if (!safeKey) {
-      return;
+  entries.forEach((entry) => {
+    if (cleanValue(entry.value)) {
+      searchParams.set(entry.id, entry.value);
     }
+  });
 
-    searchParams.set(safeKey, value);
+  return `${window.location.pathname}?${searchParams.toString()}`;
+}
+
+function buildLauncherHref(scheme: string, entries: LauncherParam[]) {
+  const searchParams = new URLSearchParams();
+  searchParams.set('mode', 'launcher');
+
+  if (cleanValue(scheme)) {
+    searchParams.set('scheme', cleanValue(scheme));
+  }
+
+  entries.forEach((entry) => {
+    if (cleanValue(entry.value)) {
+      searchParams.set(entry.id, entry.value);
+    }
   });
 
   return `${window.location.pathname}?${searchParams.toString()}`;
@@ -144,19 +232,11 @@ function getPresetForScheme(scheme: string) {
 }
 
 function createLauncherState(searchParams: URLSearchParams): LauncherState {
-  const params: ParamEntry[] = [];
-
-  searchParams.forEach((value, key) => {
-    if (RESERVED_SEARCH_PARAMS.has(key)) {
-      return;
-    }
-
-    params.push(createParamEntry(key, value));
-  });
+  const params = buildLauncherParamsFromSearch(searchParams);
 
   return {
     scheme: searchParams.get('scheme') || 'app_scheme',
-    params: params.length > 0 ? params : [createParamEntry('param1', '68d6ba8ab47c018f0004e4')],
+    params: params.length > 0 ? params : [createLauncherParam('param1', 'value1')],
   };
 }
 
@@ -220,14 +300,16 @@ function ViewerScreen() {
   const { properties } = usePandaBridge();
   const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const bridgeProperties = (properties ?? {}) as BridgeProperties;
+  const prefersBridge = hasBridgeLaunchData(bridgeProperties);
   const entries = useMemo(
-    () => buildEntries(bridgeProperties, searchParams),
-    [bridgeProperties, searchParams],
+    () => buildEntries(bridgeProperties, searchParams, prefersBridge),
+    [bridgeProperties, prefersBridge, searchParams],
   );
+  const filledParams = useMemo(() => getFilledParams(entries), [entries]);
   const scheme = cleanValue(bridgeProperties.scheme) || searchParams.get('scheme') || 'app_scheme';
-  const deeplink = useMemo(() => buildDeeplink(scheme, entries), [scheme, entries]);
-  const launcherHref = useMemo(() => buildLauncherHref(scheme, entries), [scheme, entries]);
-  const sourceLabel = Object.keys(bridgeProperties).length > 0 ? 'PandaSuite bindings' : 'Browser preview';
+  const deeplink = useMemo(() => buildViewerDeeplink(scheme, entries), [entries, scheme]);
+  const launcherHref = useMemo(() => buildViewerLauncherHref(scheme, entries), [entries, scheme]);
+  const sourceLabel = prefersBridge ? 'PandaSuite bindings' : 'Browser preview';
   const lastSnapshot = useRef<string | null>(null);
   const [lastUpdateIso, setLastUpdateIso] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
@@ -249,11 +331,7 @@ function ViewerScreen() {
       PandaBridge.send(PandaBridge.UPDATED, {
         queryable: {
           deeplink,
-          paramsJson: JSON.stringify(
-            Object.fromEntries(entries.map(({ key, value }) => [key, value])),
-            null,
-            2,
-          ),
+          paramsJson: JSON.stringify(filledParams, null, 2),
           lastUpdateIso: lastUpdateIso ?? '',
           updateCount,
         },
@@ -261,7 +339,7 @@ function ViewerScreen() {
     } catch {
       // Standalone browser preview runs without the PandaSuite host.
     }
-  }, [deeplink, entries, lastUpdateIso, updateCount]);
+  }, [deeplink, filledParams, lastUpdateIso, updateCount]);
 
   return (
     <PageFrame ctaLabel="Open launcher" ctaHref={launcherHref}>
@@ -270,8 +348,7 @@ function ViewerScreen() {
           <div className="hero__inner">
             <h1 className="hero__title">URL parameters viewer</h1>
             <p className="hero__description">
-              {bridgeProperties.subtitle ||
-                'Bind properties to the PandaSuite launch context and inspect incoming values through the bridge.'}
+              Bind properties to the PandaSuite launch context and inspect incoming values through the bridge.
             </p>
             <div className="hero__actions">
               <a className="button button--primary" href={launcherHref}>
@@ -289,8 +366,12 @@ function ViewerScreen() {
             <div className="hero__pills">
               <StatusPill label={sourceLabel} tone="success" />
               <StatusPill
-                label={entries.length > 0 ? `${entries.length} resolved parameter(s)` : 'No resolved parameter'}
-                tone={entries.length > 0 ? 'neutral' : 'warning'}
+                label={
+                  Object.keys(filledParams).length > 0
+                    ? `${Object.keys(filledParams).length} resolved parameter(s)`
+                    : 'No resolved parameter'
+                }
+                tone={Object.keys(filledParams).length > 0 ? 'neutral' : 'warning'}
               />
             </div>
           </div>
@@ -327,20 +408,12 @@ function ViewerScreen() {
                 <h2>Resolved parameters</h2>
               </div>
             </div>
-            {entries.length > 0 ? (
-              <div className="entry-list">
-                {entries.map(({ key, value }) => (
-                  <div className="entry-card" key={key}>
-                    <div className="entry-key">{key}</div>
-                    <div className="entry-value">{value || 'Empty value'}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
+            {Object.keys(filledParams).length === 0 ? (
               <div className="empty-state">
-                <p>No slot is populated yet.</p>
+                <p>No launch value received yet.</p>
                 <p>
-                  Bind `paramXValue` to <strong>Project &gt; Context &gt; Launch &gt; Parameter(s)</strong>.
+                  Bind `param1`, `param2`, and `param3` directly to{' '}
+                  <strong>Project &gt; Context &gt; Launch &gt; Parameter(s)</strong>.
                 </p>
                 <p>
                   See{' '}
@@ -354,7 +427,16 @@ function ViewerScreen() {
                   .
                 </p>
               </div>
-            )}
+            ) : null}
+            <div className="entry-list">
+              {entries.map(({ id, value, isFilled, slotLabel }) => (
+                <div className={`entry-card ${isFilled ? '' : 'entry-card--muted'}`} key={id}>
+                  <div className="entry-key">{id}</div>
+                  <div className="entry-meta">{slotLabel}</div>
+                  <div className="entry-value">{isFilled ? value : 'No value received'}</div>
+                </div>
+              ))}
+            </div>
           </article>
         </section>
 
@@ -378,26 +460,10 @@ function LauncherScreen() {
   const [params, setParams] = useState(initialState.params);
   const [presetId, setPresetId] = useState(() => getPresetForScheme(initialState.scheme));
   const [notice, setNotice] = useState('Edit the scheme and parameters, then reopen the app.');
-  const deeplink = useMemo(() => buildDeeplink(scheme, params), [scheme, params]);
+  const deeplink = useMemo(() => buildLauncherDeeplink(scheme, params), [params, scheme]);
 
   useEffect(() => {
-    const searchParams = new URLSearchParams();
-    searchParams.set('mode', 'launcher');
-
-    if (cleanValue(scheme)) {
-      searchParams.set('scheme', cleanValue(scheme));
-    }
-
-    params.forEach(({ key, value }) => {
-      const safeKey = cleanValue(key);
-      if (!safeKey) {
-        return;
-      }
-
-      searchParams.set(safeKey, value);
-    });
-
-    const nextUrl = `${window.location.pathname}?${searchParams.toString()}`;
+    const nextUrl = buildLauncherHref(scheme, params);
     window.history.replaceState({}, '', nextUrl);
     window.localStorage.setItem(
       'url-params-viewer-launcher',
@@ -419,22 +485,22 @@ function LauncherScreen() {
     }
 
     try {
-      const savedState = JSON.parse(rawValue) as LauncherState;
+      const savedState = JSON.parse(rawValue) as Partial<LauncherState>;
+      const savedParams = Array.isArray(savedState.params)
+        ? savedState.params.map((entry) => createLauncherParam(entry.key, entry.value))
+        : [createLauncherParam('param1', 'value1')];
+
       setScheme(savedState.scheme || 'app_scheme');
       setPresetId(getPresetForScheme(savedState.scheme || 'app_scheme'));
-      setParams(
-        savedState.params?.length
-          ? savedState.params.map((entry) => createParamEntry(entry.key, entry.value))
-          : initialState.params,
-      );
+      setParams(savedParams.length > 0 ? savedParams : initialState.params);
     } catch {
       // Ignore invalid cached launcher state.
     }
   }, [initialState.params, initialState.scheme]);
 
-  function updateParam(index: number, nextValue: ParamEntry) {
+  function updateParam(id: string, field: 'key' | 'value', nextValue: string) {
     setParams((currentValue) =>
-      currentValue.map((entry, entryIndex) => (entryIndex === index ? nextValue : entry)),
+      currentValue.map((entry) => (entry.id === id ? { ...entry, [field]: nextValue } : entry)),
     );
   }
 
@@ -496,7 +562,7 @@ function LauncherScreen() {
             <DocsLinks />
             <div className="hero__pills">
               <StatusPill label="External page" tone="neutral" />
-              <StatusPill label={`${params.length} parameter row(s)`} tone="success" />
+              <StatusPill label={`${params.length} launcher parameter(s)`} tone="success" />
             </div>
           </div>
         </section>
@@ -546,33 +612,23 @@ function LauncherScreen() {
               {params.map((entry, index) => (
                 <div className="launcher-row" key={entry.id}>
                   <input
-                    aria-label={`Key ${index + 1}`}
+                    aria-label={`Parameter ${index + 1} name`}
                     value={entry.key}
-                    onChange={(event) =>
-                      updateParam(index, {
-                        ...entry,
-                        key: event.target.value,
-                      })
-                    }
-                    placeholder="auth_type"
+                    onChange={(event) => updateParam(entry.id, 'key', event.target.value)}
+                    placeholder={`param${index + 1}`}
                   />
                   <input
-                    aria-label={`Value ${index + 1}`}
+                    aria-label={`Parameter ${index + 1} value`}
                     value={entry.value}
-                    onChange={(event) =>
-                      updateParam(index, {
-                        ...entry,
-                        value: event.target.value,
-                      })
-                    }
-                    placeholder="68d6ba8ab47c018f0004e4"
+                    onChange={(event) => updateParam(entry.id, 'value', event.target.value)}
+                    placeholder="Value"
                   />
                   <button
                     type="button"
-                  className="button button--ghost"
-                  onClick={() => setParams((currentValue) => currentValue.filter((_, entryIndex) => entryIndex !== index))}
-                  disabled={params.length === 1}
-                >
+                    className="button button--ghost"
+                    onClick={() => setParams((currentValue) => currentValue.filter((item) => item.id !== entry.id))}
+                    disabled={params.length === 1}
+                  >
                     Remove
                   </button>
                 </div>
@@ -583,11 +639,24 @@ function LauncherScreen() {
               <button
                 type="button"
                 className="button button--secondary"
-                onClick={() => setParams((currentValue) => [...currentValue, createParamEntry()])}
+                onClick={() => setParams((currentValue) => [...currentValue, createLauncherParam(`param${currentValue.length + 1}`)])}
               >
                 Add parameter
               </button>
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={() => {
+                  setParams([createLauncherParam('param1', 'value1')]);
+                  setNotice('All parameter fields cleared.');
+                }}
+              >
+                Clear values
+              </button>
             </div>
+            <p className="notice">
+              This launcher is intentionally dynamic for demo purposes. Add or remove parameters as needed.
+            </p>
           </article>
 
           <article className="panel">
@@ -629,11 +698,11 @@ function LauncherScreen() {
             </li>
             <li>Fill in the exact scheme registered by the native app.</li>
             <li>
-              Reuse the same parameter names as in{' '}
+              Add the parameter names you want to test so they match your{' '}
               <a href={DOC_LINKS.urlParameters} target="_blank" rel="noreferrer">
                 Project &gt; Context &gt; Launch
-              </a>
-              .
+              </a>{' '}
+              parameters.
             </li>
             <li>Press `Open app` to leave the browser and relaunch the app.</li>
           </ol>

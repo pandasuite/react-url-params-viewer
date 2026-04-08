@@ -11,18 +11,6 @@
   },
   "properties": [
     {
-      "id": "title",
-      "name": "Title",
-      "type": "String",
-      "value": "Launch parameters"
-    },
-    {
-      "id": "subtitle",
-      "name": "Subtitle",
-      "type": "String",
-      "value": "Bind each slot to Project > Context > Launch > Parameter(s)."
-    },
-    {
       "id": "scheme",
       "name": "App scheme",
       "type": "String",
@@ -31,106 +19,29 @@
       "placeholder": "app_scheme"
     },
     {
-      "id": "param1Key",
-      "name": "Parameter 1 key",
-      "type": "String",
-      "value": "param1",
-      "bindable": true,
-      "separator": true,
-      "placeholder": "auth_type"
-    },
-    {
-      "id": "param1Value",
-      "name": "Parameter 1 value",
+      "id": "param1",
+      "name": "param1",
       "type": "String",
       "value": "",
       "bindable": true,
-      "hidden": "properties.param1Key.value == ''"
-    },
-    {
-      "id": "param2Key",
-      "name": "Parameter 2 key",
-      "type": "String",
-      "value": "param2",
-      "bindable": true,
       "separator": true,
-      "placeholder": "created"
+      "placeholder": "Value"
     },
     {
-      "id": "param2Value",
-      "name": "Parameter 2 value",
+      "id": "param2",
+      "name": "param2",
       "type": "String",
       "value": "",
       "bindable": true,
-      "hidden": "properties.param2Key.value == ''"
+      "placeholder": "Value"
     },
     {
-      "id": "param3Key",
-      "name": "Parameter 3 key",
-      "type": "String",
-      "value": "param3",
-      "bindable": true,
-      "separator": true,
-      "placeholder": "user_id"
-    },
-    {
-      "id": "param3Value",
-      "name": "Parameter 3 value",
+      "id": "param3",
+      "name": "param3",
       "type": "String",
       "value": "",
       "bindable": true,
-      "hidden": "properties.param3Key.value == ''"
-    },
-    {
-      "id": "param4Key",
-      "name": "Parameter 4 key",
-      "type": "String",
-      "value": "param4",
-      "bindable": true,
-      "separator": true,
-      "placeholder": "wid"
-    },
-    {
-      "id": "param4Value",
-      "name": "Parameter 4 value",
-      "type": "String",
-      "value": "",
-      "bindable": true,
-      "hidden": "properties.param4Key.value == ''"
-    },
-    {
-      "id": "param5Key",
-      "name": "Parameter 5 key",
-      "type": "String",
-      "value": "param5",
-      "bindable": true,
-      "separator": true,
-      "placeholder": "business_name"
-    },
-    {
-      "id": "param5Value",
-      "name": "Parameter 5 value",
-      "type": "String",
-      "value": "",
-      "bindable": true,
-      "hidden": "properties.param5Key.value == ''"
-    },
-    {
-      "id": "param6Key",
-      "name": "Parameter 6 key",
-      "type": "String",
-      "value": "param6",
-      "bindable": true,
-      "separator": true,
-      "placeholder": "creation_status"
-    },
-    {
-      "id": "param6Value",
-      "name": "Parameter 6 value",
-      "type": "String",
-      "value": "",
-      "bindable": true,
-      "hidden": "properties.param6Key.value == ''"
+      "placeholder": "Value"
     }
   ],
   "events": [],

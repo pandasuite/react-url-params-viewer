@@ -390,12 +390,21 @@ pre {
   border-radius: 16px;
 }
 
+.entry-card--muted {
+  opacity: 0.72;
+}
+
 .entry-key {
   color: #59c98b;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.entry-meta {
+  color: #90a0ae;
+  font-size: 0.84rem;
 }
 
 .entry-value {
@@ -501,7 +510,32 @@ input::placeholder {
   gap: 10px;
 }
 
+.launcher-row--named {
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr);
+  align-items: center;
+}
+
+.launcher-row--named span {
+  color: #556575;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.launcher-row--slot {
+  grid-template-columns: minmax(0, 140px) minmax(0, 0.95fr) minmax(0, 1.25fr);
+  align-items: center;
+}
+
+.launcher-row--slot span {
+  color: #556575;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
 .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 14px;
 }
 
@@ -560,6 +594,14 @@ input::placeholder {
 
   .stats-grid,
   .launcher-row {
+    grid-template-columns: 1fr;
+  }
+
+  .launcher-row--named {
+    grid-template-columns: 1fr;
+  }
+
+  .launcher-row--slot {
     grid-template-columns: 1fr;
   }
 

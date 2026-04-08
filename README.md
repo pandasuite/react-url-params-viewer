@@ -7,6 +7,8 @@ It covers two complementary use cases:
 - `viewer` mode: the PandaSuite custom component displays launch URL parameters received through PandaBridge bindings.
 - `launcher` mode: a standalone page builds a deep link such as `app_scheme://?param1=value` and sends the user back to the native app.
 
+The project is intentionally a demo component: the launcher stays flexible for experimentation, while `pandasuite.json` exposes only a small set of bindable slots that developers are expected to adapt to their own project.
+
 ## Stack
 
 - React 18
@@ -30,7 +32,7 @@ Useful URLs:
 
 - `http://localhost:5173/` for the viewer
 - `http://localhost:5173/?mode=launcher` for the launcher page
-- `http://localhost:5173/?auth_type=demo&created=2026-04-07` to preview fallback values in the browser
+- `http://localhost:5173/?param1=demo&param2=2026-04-07` to preview fallback values in the browser
 
 ## Production build
 
@@ -64,9 +66,8 @@ Use the ZIP only when you explicitly need an offline Web component import.
 1. Publish the static build somewhere accessible by PandaSuite, for example GitHub Pages.
 2. Refresh metadata in PandaSuite Studio so it loads `pandasuite.json`.
 3. Add the custom component URL to your project.
-4. Bind each `paramXValue` property to `Project > Context > Launch > Parameter(s) > ...`.
-5. Keep the matching `paramXKey` equal to the exact launch parameter name.
-6. Optionally set `scheme` so the component shows the same deeplink prefix as the native app.
+4. Bind `param1`, `param2`, and `param3` to `Project > Context > Launch > Parameter(s) > ...`.
+5. Optionally set `scheme` so the component shows the same deeplink prefix as the native app.
 
 ## PandaViewer preset
 
@@ -78,18 +79,23 @@ The launcher includes a built-in `PandaViewer` preset.
 
 Example binding plan:
 
-- `param1Key = auth_type`
-- `param1Value -> Project > Context > Launch > Parameter(s) > auth_type`
-- `param2Key = created`
-- `param2Value -> Project > Context > Launch > Parameter(s) > created`
+- `param1 -> Project > Context > Launch > Parameter(s) > auth_type`
+- `param2 -> Project > Context > Launch > Parameter(s) > created`
+- `param3 -> Project > Context > Launch > Parameter(s) > wid`
 
 When the native app is reopened with:
 
 ```text
-app_scheme://?auth_type=68d6ba8ab47c018f0004e4
+pandasuite://?param1=google&param2=0&param3=bc0fd30b93e36ed000046c
 ```
 
-the component should receive the updated property value through PandaBridge and refresh its UI.
+the component should receive the updated property values through PandaBridge and refresh its UI.
+
+## Demo behavior
+
+- The PandaSuite viewer keeps `3` bindable slots in `pandasuite.json`.
+- The launcher page is dynamic on purpose: you can add and remove parameters freely to test deep links.
+- In a real project, you will usually tailor `pandasuite.json` to the exact parameters and fields you want to expose in Studio.
 
 ## Launcher page
 
@@ -108,7 +114,7 @@ https://pandasuite.github.io/react-url-params-viewer/?mode=launcher
 You can also prefill the form through the page URL:
 
 ```text
-https://pandasuite.github.io/react-url-params-viewer/?mode=launcher&scheme=app_scheme&auth_type=68d6ba8ab47c018f0004e4&created=2026-04-07
+https://pandasuite.github.io/react-url-params-viewer/?mode=launcher&scheme=app_scheme&param1=value1&param2=2026-04-07
 ```
 
 The page keeps the form state in the URL and in `localStorage`, so it is easy to tweak values and retest deep links from the WebView.
