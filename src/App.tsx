@@ -62,6 +62,7 @@ const DOC_LINKS = {
   urlParameters: 'https://docs.pandasuite.com/essentials/project-properties/url-parameters/',
   webComponent: 'https://docs.pandasuite.com/essentials/components/web/',
 };
+const LOGO_PATH = `${import.meta.env.BASE_URL}assets/logo-pandasuite.svg`;
 
 function cleanValue(value: string | null | undefined) {
   return (value ?? '').trim();
@@ -282,7 +283,7 @@ function PageFrame({ children, ctaLabel, ctaHref }: PageFrameProps) {
       <header className="header-bar">
         <div className="header-bar__inner">
           <a className="topbar__brand" href="/">
-            <img src="/assets/logo-pandasuite.svg" alt="PandaSuite" />
+            <img src={LOGO_PATH} alt="PandaSuite" />
           </a>
           <div className="header-bar__actions">
             <a className="header-bar__cta" href={ctaHref}>
