@@ -53,7 +53,7 @@ const SCHEME_PRESETS: SchemePreset[] = [
   {
     id: 'custom',
     label: 'Custom',
-    scheme: '',
+    scheme: 'app_custom',
     helper: 'Use any other scheme declared by your host app.',
   },
 ];
@@ -170,7 +170,7 @@ function buildViewerDeeplink(scheme: string, entries: ParamEntry[]) {
     }
   });
 
-  const base = normalizedScheme ? `${normalizedScheme}://` : 'app_scheme://';
+  const base = normalizedScheme ? `${normalizedScheme}://` : 'pandasuite://';
   const queryString = query.toString();
 
   return queryString ? `${base}?${queryString}` : base;
@@ -337,7 +337,7 @@ function ViewerScreen() {
     [bridgeProperties, prefersBridge, searchParams],
   );
   const filledParams = useMemo(() => getFilledParams(entries), [entries]);
-  const scheme = rawScheme || 'app_scheme';
+  const scheme = rawScheme || 'pandasuite';
   const deeplink = useMemo(() => buildViewerDeeplink(scheme, entries), [entries, scheme]);
   const launcherHref = useMemo(() => toAbsoluteUrl(buildViewerLauncherHref(rawScheme, entries)), [entries, rawScheme]);
   const opensLauncherExternally = prefersBridge || hasNativePandaHost();
@@ -516,6 +516,7 @@ function LauncherScreen() {
     }
 
     if (preset.id === 'custom') {
+      setScheme(preset.scheme);
       setNotice('Custom scheme selected.');
       return;
     }
@@ -649,7 +650,6 @@ function LauncherScreen() {
                     type="button"
                     className="button button--ghost"
                     onClick={() => setParams((currentValue) => currentValue.filter((item) => item.id !== entry.id))}
-                    disabled={params.length === 1}
                   >
                     Remove
                   </button>

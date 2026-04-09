@@ -367,6 +367,7 @@ pre {
 }
 
 .empty-state {
+  margin-bottom: 8px;
   padding: 18px;
   background: #fbfcfc;
   border: 1px dashed #dbe3e9;
@@ -544,7 +545,7 @@ input::placeholder {
 
 @media (max-width: 720px) {
   .header-bar__inner {
-    padding-top: calc(40px + env(safe-area-inset-top, 0px));
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
     padding-bottom: 16px;
   }
 
