@@ -16,7 +16,6 @@
       "type": "String",
       "value": "",
       "bindable": true,
-      "separator": true,
       "placeholder": "Value"
     },
     {
