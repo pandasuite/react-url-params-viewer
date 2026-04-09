@@ -13,7 +13,6 @@ type BridgeProperties = Partial<Record<'scheme' | ParamValueId, string>>;
 
 type ParamEntry = {
   id: ParamValueId;
-  slotLabel: string;
   value: string;
   isFilled: boolean;
 };
@@ -34,6 +33,7 @@ type PageFrameProps = {
   ctaLabel: string;
   ctaHref: string;
   ctaOnClick?: () => void;
+  pageClassName?: string;
 };
 
 type SchemePreset = {
@@ -73,7 +73,6 @@ function cleanValue(value: string | null | undefined) {
 function createSlotEntry(slot: SlotNumber, value = ''): ParamEntry {
   return {
     id: `param${slot}`,
-    slotLabel: `Parameter ${slot}`,
     value,
     isFilled: Boolean(cleanValue(value)),
   } as ParamEntry;
@@ -268,6 +267,23 @@ function toAbsoluteUrl(url: string) {
   return new URL(url, window.location.href).toString();
 }
 
+function hasNativePandaHost() {
+  const windowWithBridge = window as Window & {
+    WebViewAndroidBridge?: unknown;
+    WebViewJavascriptBridge?: unknown;
+  };
+
+  return Boolean(windowWithBridge.WebViewAndroidBridge || windowWithBridge.WebViewJavascriptBridge);
+}
+
+function isMobileDevice() {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 function openExternalUrl(url: string) {
   const absoluteUrl = toAbsoluteUrl(url);
 
@@ -284,29 +300,24 @@ function openExternalUrl(url: string) {
   }
 }
 
-function PageFrame({ children, ctaLabel, ctaHref, ctaOnClick }: PageFrameProps) {
+function PageFrame({ children, ctaLabel, ctaHref, ctaOnClick, pageClassName }: PageFrameProps) {
   return (
-    <div className="page-shell">
+    <div className={`page-shell${pageClassName ? ` ${pageClassName}` : ''}`}>
       <header className="header-bar">
         <div className="header-bar__inner">
           <a className="topbar__brand" href={APP_BASE_PATH}>
             <img src={LOGO_PATH} alt="PandaSuite" />
           </a>
           <div className="header-bar__actions">
-            <a
-              className="header-bar__cta"
-              href={ctaHref}
-              onClick={(event) => {
-                if (!ctaOnClick) {
-                  return;
-                }
-
-                event.preventDefault();
-                ctaOnClick();
-              }}
-            >
-              {ctaLabel}
-            </a>
+            {ctaOnClick ? (
+              <button type="button" className="header-bar__cta" onClick={ctaOnClick}>
+                {ctaLabel}
+              </button>
+            ) : (
+              <a className="header-bar__cta" href={ctaHref}>
+                {ctaLabel}
+              </a>
+            )}
           </div>
         </div>
       </header>
@@ -329,6 +340,7 @@ function ViewerScreen() {
   const scheme = rawScheme || 'app_scheme';
   const deeplink = useMemo(() => buildViewerDeeplink(scheme, entries), [entries, scheme]);
   const launcherHref = useMemo(() => toAbsoluteUrl(buildViewerLauncherHref(rawScheme, entries)), [entries, rawScheme]);
+  const opensLauncherExternally = prefersBridge || hasNativePandaHost();
   const lastSnapshot = useRef<string | null>(null);
   const [lastUpdateIso, setLastUpdateIso] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
@@ -361,11 +373,21 @@ function ViewerScreen() {
   }, [deeplink, filledParams, lastUpdateIso, updateCount]);
 
   function openLauncher() {
-    openExternalUrl(launcherHref);
+    if (opensLauncherExternally) {
+      openExternalUrl(launcherHref);
+      return;
+    }
+
+    window.location.href = launcherHref;
   }
 
   return (
-    <PageFrame ctaLabel="Open launcher" ctaHref={launcherHref} ctaOnClick={openLauncher}>
+    <PageFrame
+      pageClassName="page-shell--viewer"
+      ctaLabel="Open launcher"
+      ctaHref={launcherHref}
+      ctaOnClick={opensLauncherExternally ? openLauncher : undefined}
+    >
       <main className="shell">
         <section className="hero">
           <div className="hero__inner">
@@ -373,18 +395,6 @@ function ViewerScreen() {
             <p className="hero__description">
               Bind properties to the PandaSuite launch context and inspect incoming values through the bridge.
             </p>
-            <div className="hero__actions">
-              <button type="button" className="button button--primary" onClick={openLauncher}>
-                Test app return
-              </button>
-              <button
-                type="button"
-                className="button button--secondary"
-                onClick={() => navigator.clipboard.writeText(deeplink).catch(() => undefined)}
-              >
-                Copy deeplink
-              </button>
-            </div>
           </div>
         </section>
 
@@ -417,17 +427,12 @@ function ViewerScreen() {
             {Object.keys(filledParams).length === 0 ? (
               <div className="empty-state">
                 <p>No launch value received yet.</p>
-                <p>
-                  Bind `param1` and `param2` directly to{' '}
-                  <strong>Project &gt; Context &gt; Launch &gt; Parameter(s)</strong>.
-                </p>
               </div>
             ) : null}
             <div className="entry-list">
-              {entries.map(({ id, value, isFilled, slotLabel }) => (
+              {entries.map(({ id, value, isFilled }) => (
                 <div className={`entry-card ${isFilled ? '' : 'entry-card--muted'}`} key={id}>
                   <div className="entry-key">{id}</div>
-                  <div className="entry-meta">{slotLabel}</div>
                   <div className="entry-value">{isFilled ? value : 'No value received'}</div>
                 </div>
               ))}
@@ -457,6 +462,8 @@ function LauncherScreen() {
   const [notice, setNotice] = useState('Edit the scheme and parameters, then reopen the app.');
   const deeplink = useMemo(() => buildLauncherDeeplink(scheme, params), [params, scheme]);
   const backToAppHref = useMemo(() => buildBaseDeeplink(scheme), [scheme]);
+  const isMobile = useMemo(() => isMobileDevice(), []);
+  const viewerHref = APP_BASE_PATH;
 
   useEffect(() => {
     const nextUrl = buildLauncherHref(scheme, params);
@@ -538,8 +545,16 @@ function LauncherScreen() {
     window.location.href = backToAppHref;
   }
 
+  function backToViewer() {
+    window.location.href = viewerHref;
+  }
+
   return (
-    <PageFrame ctaLabel="Back to app" ctaHref={backToAppHref} ctaOnClick={openAppBase}>
+    <PageFrame
+      ctaLabel={isMobile ? 'Back to app' : 'Back to viewer'}
+      ctaHref={isMobile ? backToAppHref : viewerHref}
+      ctaOnClick={isMobile ? openAppBase : undefined}
+    >
       <main className="shell">
         <section className="hero">
           <div className="hero__inner">
@@ -559,8 +574,8 @@ function LauncherScreen() {
               <code>{deeplink}</code>
             </div>
             <div className="stack">
-              <button type="button" className="button button--primary" onClick={openApp}>
-                Open app
+              <button type="button" className="button button--primary" onClick={isMobile ? openApp : backToViewer}>
+                {isMobile ? 'Open app' : 'Back to viewer'}
               </button>
               <button type="button" className="button button--secondary" onClick={() => copyText(deeplink, 'Deeplink copied.')}>
                 Copy deeplink
@@ -597,17 +612,23 @@ function LauncherScreen() {
               </a>
             </p>
 
-            <label className="field">
-              <span>App scheme</span>
-              <input
-                value={scheme}
-                onChange={(event) => {
-                  setScheme(event.target.value);
-                  setPresetId(getPresetForScheme(event.target.value));
-                }}
-                placeholder="pandasuite"
-              />
-            </label>
+            {presetId !== 'pandaviewer' ? (
+              <label className="field">
+                <span>App scheme</span>
+                <input
+                  value={scheme}
+                  onChange={(event) => {
+                    setScheme(event.target.value);
+                    setPresetId(getPresetForScheme(event.target.value));
+                  }}
+                  placeholder="pandasuite"
+                />
+              </label>
+            ) : null}
+
+            <div className="field-group">
+              <span className="field-group__label">Parameters</span>
+            </div>
 
             <div className="launcher-list">
               {params.map((entry, index) => (
@@ -643,16 +664,6 @@ function LauncherScreen() {
                 onClick={() => setParams((currentValue) => [...currentValue, createLauncherParam(`param${currentValue.length + 1}`)])}
               >
                 Add parameter
-              </button>
-              <button
-                type="button"
-                className="button button--secondary"
-                onClick={() => {
-                  setParams([createLauncherParam('param1', 'value1')]);
-                  setNotice('All parameter fields cleared.');
-                }}
-              >
-                Clear values
               </button>
             </div>
             <p className="notice">

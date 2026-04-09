@@ -30,21 +30,11 @@ a {
   text-decoration: none;
 }
 
-.docs-links,
 .usage-links {
   color: #7a8696;
   font-size: 0.92rem;
 }
 
-.docs-links {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-}
-
-.docs-links a,
 .preset-helper a,
 .empty-state a,
 .usage-links a,
@@ -53,7 +43,6 @@ a {
   font-weight: 600;
 }
 
-.docs-links a:hover,
 .preset-helper a:hover,
 .empty-state a:hover,
 .usage-links a:hover,
@@ -170,21 +159,11 @@ pre {
   line-height: 1.5;
 }
 
-.hero__actions,
-.hero__pills,
 .stack {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-}
-
-.hero__actions {
-  margin-top: 18px;
-}
-
-.hero__pills {
-  margin-top: 14px;
 }
 
 .stack {
@@ -239,28 +218,6 @@ pre {
 
 .button--ghost:hover {
   background: #f6f8fa;
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid #dde3e9;
-  background: rgba(255, 255, 255, 0.92);
-  color: #596678;
-  font-size: 0.88rem;
-  font-weight: 500;
-}
-
-.status-pill--success {
-  color: #2ea36a;
-}
-
-.status-pill--warning {
-  color: #c67d2f;
 }
 
 .content-grid {
@@ -402,11 +359,6 @@ pre {
   text-transform: uppercase;
 }
 
-.entry-meta {
-  color: #90a0ae;
-  font-size: 0.84rem;
-}
-
 .entry-value {
   color: #222d39;
   font-size: 1rem;
@@ -434,6 +386,21 @@ pre {
   display: grid;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.field-group {
+  margin: 18px 0 14px;
+  padding-top: 18px;
+  border-top: 1px solid #edf1f4;
+}
+
+.field-group__label {
+  display: block;
+  color: #7b8897;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .preset-group {
@@ -579,6 +546,10 @@ input::placeholder {
   .header-bar__inner {
     padding-top: calc(40px + env(safe-area-inset-top, 0px));
     padding-bottom: 16px;
+  }
+
+  .page-shell--viewer .header-bar__inner {
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
   }
 
   .shell {
