@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PandaBridge from 'pandasuite-bridge';
 import { PandaBridgeRoot, usePandaBridge } from 'pandasuite-bridge-react';
 
-const SLOT_NUMBERS = [1, 2, 3] as const;
+const SLOT_NUMBERS = [1, 2] as const;
 const RESERVED_SEARCH_PARAMS = new Set(['mode', 'scheme']);
 
 type SlotNumber = (typeof SLOT_NUMBERS)[number];
@@ -177,6 +177,11 @@ function buildViewerDeeplink(scheme: string, entries: ParamEntry[]) {
   return queryString ? `${base}?${queryString}` : base;
 }
 
+function buildBaseDeeplink(scheme: string) {
+  const normalizedScheme = cleanValue(scheme);
+  return normalizedScheme ? `${normalizedScheme}://` : 'pandasuite://';
+}
+
 function buildLauncherDeeplink(scheme: string, entries: LauncherParam[]) {
   const normalizedScheme = cleanValue(scheme);
   const query = new URLSearchParams();
@@ -238,7 +243,7 @@ function createLauncherState(searchParams: URLSearchParams): LauncherState {
   const params = buildLauncherParamsFromSearch(searchParams);
 
   return {
-    scheme: searchParams.get('scheme') || 'app_scheme',
+    scheme: searchParams.get('scheme') || 'pandasuite',
     params: params.length > 0 ? params : [createLauncherParam('param1', 'value1')],
   };
 }
@@ -279,26 +284,6 @@ function openExternalUrl(url: string) {
   }
 }
 
-function StatusPill({ label, tone }: { label: string; tone: 'neutral' | 'success' | 'warning' }) {
-  return <span className={`status-pill status-pill--${tone}`}>{label}</span>;
-}
-
-function DocsLinks() {
-  return (
-    <div className="docs-links" aria-label="Documentation links">
-      <a href={DOC_LINKS.customComponents} target="_blank" rel="noreferrer">
-        Custom components
-      </a>
-      <a href={DOC_LINKS.urlParameters} target="_blank" rel="noreferrer">
-        URL parameters
-      </a>
-      <a href={DOC_LINKS.webComponent} target="_blank" rel="noreferrer">
-        Web component
-      </a>
-    </div>
-  );
-}
-
 function PageFrame({ children, ctaLabel, ctaHref, ctaOnClick }: PageFrameProps) {
   return (
     <div className="page-shell">
@@ -335,15 +320,15 @@ function ViewerScreen() {
   const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const bridgeProperties = (properties ?? {}) as BridgeProperties;
   const prefersBridge = hasBridgeLaunchData(bridgeProperties);
+  const rawScheme = cleanValue(bridgeProperties.scheme) || searchParams.get('scheme') || '';
   const entries = useMemo(
     () => buildEntries(bridgeProperties, searchParams, prefersBridge),
     [bridgeProperties, prefersBridge, searchParams],
   );
   const filledParams = useMemo(() => getFilledParams(entries), [entries]);
-  const scheme = cleanValue(bridgeProperties.scheme) || searchParams.get('scheme') || 'app_scheme';
+  const scheme = rawScheme || 'app_scheme';
   const deeplink = useMemo(() => buildViewerDeeplink(scheme, entries), [entries, scheme]);
-  const launcherHref = useMemo(() => toAbsoluteUrl(buildViewerLauncherHref(scheme, entries)), [entries, scheme]);
-  const sourceLabel = prefersBridge ? 'PandaSuite bindings' : 'Browser preview';
+  const launcherHref = useMemo(() => toAbsoluteUrl(buildViewerLauncherHref(rawScheme, entries)), [entries, rawScheme]);
   const lastSnapshot = useRef<string | null>(null);
   const [lastUpdateIso, setLastUpdateIso] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
@@ -400,18 +385,6 @@ function ViewerScreen() {
                 Copy deeplink
               </button>
             </div>
-            <DocsLinks />
-            <div className="hero__pills">
-              <StatusPill label={sourceLabel} tone="success" />
-              <StatusPill
-                label={
-                  Object.keys(filledParams).length > 0
-                    ? `${Object.keys(filledParams).length} resolved parameter(s)`
-                    : 'No resolved parameter'
-                }
-                tone={Object.keys(filledParams).length > 0 ? 'neutral' : 'warning'}
-              />
-            </div>
           </div>
         </section>
 
@@ -422,7 +395,6 @@ function ViewerScreen() {
                 <span className="panel-kicker">Launch context</span>
                 <h2>Received deep link</h2>
               </div>
-              <span className="mono-badge">{scheme}://</span>
             </div>
             <div className="deeplink-preview">
               <code>{deeplink}</code>
@@ -431,10 +403,6 @@ function ViewerScreen() {
               <div className="stat-card">
                 <span className="meta-label">Last update</span>
                 <strong>{formatRelativeTime(lastUpdateIso)}</strong>
-              </div>
-              <div className="stat-card">
-                <span className="meta-label">Refresh count</span>
-                <strong>{updateCount}</strong>
               </div>
             </div>
           </article>
@@ -450,19 +418,8 @@ function ViewerScreen() {
               <div className="empty-state">
                 <p>No launch value received yet.</p>
                 <p>
-                  Bind `param1`, `param2`, and `param3` directly to{' '}
+                  Bind `param1` and `param2` directly to{' '}
                   <strong>Project &gt; Context &gt; Launch &gt; Parameter(s)</strong>.
-                </p>
-                <p>
-                  See{' '}
-                  <a href={DOC_LINKS.urlParameters} target="_blank" rel="noreferrer">
-                    URL parameters docs
-                  </a>{' '}
-                  and{' '}
-                  <a href={DOC_LINKS.customComponents} target="_blank" rel="noreferrer">
-                    custom components docs
-                  </a>
-                  .
                 </p>
               </div>
             ) : null}
@@ -499,6 +456,7 @@ function LauncherScreen() {
   const [presetId, setPresetId] = useState(() => getPresetForScheme(initialState.scheme));
   const [notice, setNotice] = useState('Edit the scheme and parameters, then reopen the app.');
   const deeplink = useMemo(() => buildLauncherDeeplink(scheme, params), [params, scheme]);
+  const backToAppHref = useMemo(() => buildBaseDeeplink(scheme), [scheme]);
 
   useEffect(() => {
     const nextUrl = buildLauncherHref(scheme, params);
@@ -513,7 +471,7 @@ function LauncherScreen() {
   }, [params, scheme]);
 
   useEffect(() => {
-    if (initialState.params.length > 0 || initialState.scheme !== 'app_scheme') {
+    if (initialState.params.length > 0 || initialState.scheme !== 'pandasuite') {
       return;
     }
 
@@ -528,8 +486,8 @@ function LauncherScreen() {
         ? savedState.params.map((entry) => createLauncherParam(entry.key, entry.value))
         : [createLauncherParam('param1', 'value1')];
 
-      setScheme(savedState.scheme || 'app_scheme');
-      setPresetId(getPresetForScheme(savedState.scheme || 'app_scheme'));
+      setScheme(savedState.scheme || 'pandasuite');
+      setPresetId(getPresetForScheme(savedState.scheme || 'pandasuite'));
       setParams(savedParams.length > 0 ? savedParams : initialState.params);
     } catch {
       // Ignore invalid cached launcher state.
@@ -576,36 +534,41 @@ function LauncherScreen() {
     }, 1400);
   }
 
+  function openAppBase() {
+    window.location.href = backToAppHref;
+  }
+
   return (
-    <PageFrame ctaLabel="Open viewer" ctaHref={APP_BASE_PATH}>
+    <PageFrame ctaLabel="Back to app" ctaHref={backToAppHref} ctaOnClick={openAppBase}>
       <main className="shell">
         <section className="hero">
           <div className="hero__inner">
             <h1 className="hero__title">Deep link launcher</h1>
-            <p className="hero__description">
-              Configure the scheme and parameters, then send the user back to the native application.
-            </p>
-            <div className="hero__actions">
-              <button type="button" className="button button--primary" onClick={openApp}>
-                Open app
-              </button>
-              <button
-                type="button"
-                className="button button--secondary"
-                onClick={() => copyText(window.location.href, 'Page URL copied.')}
-              >
-                Copy page URL
-              </button>
-            </div>
-            <DocsLinks />
-            <div className="hero__pills">
-              <StatusPill label="External page" tone="neutral" />
-              <StatusPill label={`${params.length} launcher parameter(s)`} tone="success" />
-            </div>
           </div>
         </section>
 
         <section className="content-grid">
+          <article className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="panel-kicker">Output</span>
+                <h2>Generated deep link</h2>
+              </div>
+            </div>
+            <div className="deeplink-preview">
+              <code>{deeplink}</code>
+            </div>
+            <div className="stack">
+              <button type="button" className="button button--primary" onClick={openApp}>
+                Open app
+              </button>
+              <button type="button" className="button button--secondary" onClick={() => copyText(deeplink, 'Deeplink copied.')}>
+                Copy deeplink
+              </button>
+            </div>
+            <p className="notice">{notice}</p>
+          </article>
+
           <article className="panel panel--payload">
             <div className="panel-header">
               <div>
@@ -642,7 +605,7 @@ function LauncherScreen() {
                   setScheme(event.target.value);
                   setPresetId(getPresetForScheme(event.target.value));
                 }}
-                placeholder="app_scheme"
+                placeholder="pandasuite"
               />
             </label>
 
@@ -695,27 +658,6 @@ function LauncherScreen() {
             <p className="notice">
               This launcher is intentionally dynamic for demo purposes. Add or remove parameters as needed.
             </p>
-          </article>
-
-          <article className="panel">
-            <div className="panel-header">
-              <div>
-                <span className="panel-kicker">Output</span>
-                <h2>Generated deep link</h2>
-              </div>
-            </div>
-            <div className="deeplink-preview">
-              <code>{deeplink}</code>
-            </div>
-            <div className="stack">
-              <button type="button" className="button button--primary" onClick={openApp}>
-                Open app
-              </button>
-              <button type="button" className="button button--secondary" onClick={() => copyText(deeplink, 'Deeplink copied.')}>
-                Copy deeplink
-              </button>
-            </div>
-            <p className="notice">{notice}</p>
           </article>
         </section>
 

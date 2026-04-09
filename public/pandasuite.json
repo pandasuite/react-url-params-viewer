@@ -11,14 +11,6 @@
   },
   "properties": [
     {
-      "id": "scheme",
-      "name": "App scheme",
-      "type": "String",
-      "value": "app_scheme",
-      "bindable": true,
-      "placeholder": "app_scheme"
-    },
-    {
       "id": "param1",
       "name": "param1",
       "type": "String",
@@ -36,12 +28,13 @@
       "placeholder": "Value"
     },
     {
-      "id": "param3",
-      "name": "param3",
+      "id": "scheme",
+      "name": "App scheme",
       "type": "String",
       "value": "",
       "bindable": true,
-      "placeholder": "Value"
+      "separator": true,
+      "placeholder": "app_scheme"
     }
   ],
   "events": [],
