@@ -1,13 +1,53 @@
 # PandaSuite URL Params Viewer
 
-Modern PandaSuite custom component built with React, TypeScript and Vite.
+A demo component built with React, TypeScript and Vite that shows how to expose and consume URL parameters through the PandaSuite bridge.
 
-It covers two complementary use cases:
+## Why this project exists
 
-- `viewer` mode: the PandaSuite custom component displays launch URL parameters received through PandaBridge bindings.
-- `launcher` mode: a standalone page builds a deep link such as `app_scheme://?param1=value` and sends the user back to the native app.
+PandaSuite lets you bind launch URL parameters to custom component properties via `pandasuite.json`. This project demonstrates the full round-trip:
 
-The project is intentionally a demo component: the launcher stays flexible for experimentation, while `pandasuite.json` exposes only a small set of bindable slots that developers are expected to adapt to their own project.
+1. **Viewer** (PandaSuite custom component) — reads `param1`, `param2` and `scheme` from the bridge via `usePandaBridge()` and displays them.
+2. **Launcher** (external browser page) — builds a deep link like `scheme://?param1=value` and sends the user back to the native app.
+
+The typical flow:
+
+```
+PandaSuite app (Viewer)
+  → opens the Launcher in an external browser
+  → user fills in parameters
+  → taps "Open app"
+  → deep link reopens the PandaSuite app
+  → Viewer receives the new values through the bridge
+```
+
+The code is intentionally simple and well-separated so you can read each file independently and understand how the bridge integration works.
+
+## Project structure
+
+```
+src/
+  App.tsx                              # Routes between Viewer and Launcher (?mode=launcher)
+  types.ts                             # Shared type definitions
+  constants.ts                         # Presets, doc links, base paths
+  utils/
+    deeplink.ts                        # Deep link URL building
+    params.ts                          # Parameter entry helpers
+    bridge.ts                          # PandaBridge utilities (open URL, detect native host)
+  components/
+    PageFrame.tsx                      # Shared layout shell (header + CTA)
+    DeeplinkPreview.tsx                # Deep link display (shared between screens)
+    ViewerScreen.tsx                   # Bridge consumer — reads properties, sends queryable data
+      └─ uses usePandaBridge()         #   This is the core bridge integration
+    LauncherScreen.tsx                 # Deep link builder — form state, localStorage persistence
+      ├─ SchemePresetPicker.tsx        #   Preset chips + custom scheme input
+      └─ ParamListEditor.tsx           #   Dynamic parameter rows (add/remove)
+```
+
+### Key files to read first
+
+- **`pandasuite.json`** — declares which properties are bindable in PandaSuite Studio (`param1`, `param2`, `scheme`).
+- **`ViewerScreen.tsx`** — shows how `usePandaBridge()` exposes bridge properties and how `PandaBridge.send(PandaBridge.UPDATED, ...)` pushes queryable data back.
+- **`LauncherScreen.tsx`** — shows how to build a deep link and trigger it with `window.location.href`.
 
 ## Stack
 
@@ -32,7 +72,6 @@ Useful URLs:
 
 - `http://localhost:5173/` for the viewer
 - `http://localhost:5173/?mode=launcher` for the launcher page
-- `http://localhost:5173/?param1=demo&param2=2026-04-07` to preview fallback values in the browser
 
 ## Production build
 
@@ -45,7 +84,7 @@ This creates:
 - `dist/` for GitHub Pages or any static hosting
 - `pandasuite-component.zip` to upload as a PandaSuite custom component release asset
 
-## Recommended PandaSuite setup
+## PandaSuite setup
 
 Use the project in two separate ways inside PandaSuite:
 
@@ -55,50 +94,32 @@ Use the project in two separate ways inside PandaSuite:
 You can integrate it in two different forms:
 
 - **Hosted URL**: use the deployed site, for example GitHub Pages
-- **ZIP package**: use `pandasuite-component.zip` when you want an offline import or a local packaged artifact
+- **ZIP package**: use `pandasuite-component.zip` when you want an offline import
 
-Typical combinations:
-
-- **Viewer as a custom component**
-  Use the hosted component URL and refresh metadata so PandaSuite loads `pandasuite.json`.
-- **Launcher as a Web component**
-  Use either:
-  - the hosted launcher URL in `Online` mode
-  - or the ZIP in `Offline` mode if you want the launcher bundled inside the PandaSuite project
-
-Recommended hosted setup:
+### Recommended hosted setup
 
 1. Deploy `dist/` to GitHub Pages.
 2. Use the hosted root URL as the source of the custom component and refresh metadata.
 3. Add a separate **Web** component in `Online` mode and point it to:
    `https://pandasuite.github.io/react-url-params-viewer/?mode=launcher`
 
-Recommended packaged setup:
+### Recommended packaged setup
 
 1. Build the project to generate `pandasuite-component.zip`.
 2. Import the ZIP where you need an offline package.
 3. If you use the ZIP for the Web component, open `index.html` with `?mode=launcher`.
 
-## PandaSuite setup
+### Binding parameters
 
-1. Publish the static build somewhere accessible by PandaSuite, for example GitHub Pages.
-2. Refresh metadata in PandaSuite Studio so it loads `pandasuite.json`.
-3. Add the custom component URL to your project.
-4. Bind `param1` and `param2` to `Project > Context > Launch > Parameter(s) > ...`.
-5. Optionally set `scheme` so the component shows the same deeplink prefix as the native app.
+1. Refresh metadata in PandaSuite Studio so it loads `pandasuite.json`.
+2. Bind `param1` and `param2` to `Project > Context > Launch > Parameter(s) > ...`.
+3. Optionally set `scheme` so the component uses the same deep link prefix as the native app.
 
-What you can customize:
+### What you can customize
 
-- `scheme`
-  Controls the deeplink prefix used by the viewer and by the launcher. Example: `pandasuite://`, `myapp://`, `demo://`.
-- `param1` and `param2`
-  These are the two bindable slots exposed by the demo component in `pandasuite.json`.
-- the launcher parameters
-  The launcher UI is intentionally dynamic: you can add, remove, rename and fill parameters freely to test different deeplink payloads.
-- `pandasuite.json`
-  In a real project, you will usually rename props, add more props, remove demo props, or change defaults and placeholders to match your own PandaSuite project.
-- the launcher page itself
-  You can keep the current hosted page, use the packaged ZIP, or fork the UI and behavior for your own testing flow.
+- **`pandasuite.json`** — rename props, add more props, remove demo props, or change defaults and placeholders to match your own project.
+- **`scheme`** — controls the deep link prefix (`pandasuite://`, `myapp://`, etc.).
+- **The launcher page** — the form is intentionally dynamic: add, remove, rename and fill parameters freely.
 
 ## PandaViewer preset
 
@@ -119,36 +140,7 @@ When the native app is reopened with:
 pandasuite://?param1=google&param2=0
 ```
 
-the component should receive the updated property values through PandaBridge and refresh its UI.
-
-## Demo behavior
-
-- The PandaSuite viewer keeps `2` bindable slots in `pandasuite.json`.
-- The launcher page is dynamic on purpose: you can add and remove parameters freely to test deep links.
-- In a real project, you will usually tailor `pandasuite.json` to the exact parameters and fields you want to expose in Studio.
-
-## Launcher page
-
-The launcher page can run from:
-
-- a separate PandaSuite Web component
-- GitHub Pages
-- any browser
-- the packaged ZIP, if you import it in PandaSuite as offline web content
-
-Open it with:
-
-```text
-https://pandasuite.github.io/react-url-params-viewer/?mode=launcher
-```
-
-You can also prefill the form through the page URL:
-
-```text
-https://pandasuite.github.io/react-url-params-viewer/?mode=launcher&scheme=app_scheme&param1=value1&param2=2026-04-07
-```
-
-The page keeps the form state in the URL and in `localStorage`, so it is easy to tweak values and retest deep links from the WebView.
+the component receives the updated property values through PandaBridge and refreshes its UI.
 
 ## GitHub Pages
 
