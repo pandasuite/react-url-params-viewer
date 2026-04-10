@@ -1,16 +1,4 @@
 import PandaBridge from 'pandasuite-bridge';
-import type { BridgeProperties, ParamValueId } from '../types';
-import { SLOT_NUMBERS } from '../types';
-
-export function hasBridgeLaunchData(properties: BridgeProperties) {
-  return (
-    properties.scheme !== undefined ||
-    SLOT_NUMBERS.some((slot) => {
-      const valueId = `param${slot}` as ParamValueId;
-      return properties[valueId] !== undefined;
-    })
-  );
-}
 
 export function hasNativePandaHost() {
   const windowWithBridge = window as Window & {

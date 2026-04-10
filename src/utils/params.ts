@@ -1,6 +1,5 @@
 import { RESERVED_SEARCH_PARAMS, SCHEME_PRESETS } from '../constants';
-import type { LauncherParam, LauncherState, ParamEntry, ParamValueId, SlotNumber } from '../types';
-import { SLOT_NUMBERS } from '../types';
+import type { LauncherParam, LauncherState, ParamEntry, SlotNumber } from '../types';
 import { cleanValue } from './deeplink';
 
 export function createSlotEntry(slot: SlotNumber, value = ''): ParamEntry {
@@ -9,10 +8,6 @@ export function createSlotEntry(slot: SlotNumber, value = ''): ParamEntry {
     value,
     isFilled: Boolean(cleanValue(value)),
   } as ParamEntry;
-}
-
-export function createDefaultEntries() {
-  return SLOT_NUMBERS.map((slot) => createSlotEntry(slot));
 }
 
 export function createLauncherParam(key = '', value = ''): LauncherParam {
@@ -30,18 +25,6 @@ export function getFilledParams(entries: ParamEntry[]) {
     }
     return result;
   }, {});
-}
-
-export function buildEntriesFromSearch(searchParams: URLSearchParams) {
-  const entries = createDefaultEntries();
-  SLOT_NUMBERS.forEach((slot, index) => {
-    const id = `param${slot}` as ParamValueId;
-    const value = searchParams.get(id);
-    if (value !== null) {
-      entries[index] = createSlotEntry(slot, value);
-    }
-  });
-  return entries;
 }
 
 export function buildLauncherParamsFromSearch(searchParams: URLSearchParams) {

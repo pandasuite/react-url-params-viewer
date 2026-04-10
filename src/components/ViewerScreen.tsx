@@ -3,37 +3,24 @@ import PandaBridge from 'pandasuite-bridge';
 import { usePandaBridge } from 'pandasuite-bridge-react';
 import type { BridgeProperties } from '../types';
 import { SLOT_NUMBERS } from '../types';
-import { hasBridgeLaunchData, hasNativePandaHost, openExternalUrl, toAbsoluteUrl } from '../utils/bridge';
+import { hasNativePandaHost, openExternalUrl, toAbsoluteUrl } from '../utils/bridge';
 import { buildViewerDeeplink, buildLauncherUrl, cleanValue } from '../utils/deeplink';
-import { buildEntriesFromSearch, createSlotEntry, formatRelativeTime, getFilledParams } from '../utils/params';
+import { createSlotEntry, formatRelativeTime, getFilledParams } from '../utils/params';
 import DeeplinkPreview from './DeeplinkPreview';
 import PageFrame from './PageFrame';
 
-function buildEntries(properties: BridgeProperties, searchParams: URLSearchParams, preferBridge: boolean) {
-  if (!preferBridge) {
-    return buildEntriesFromSearch(searchParams);
-  }
-  return SLOT_NUMBERS.map((slot) => {
-    const valueId = `param${slot}` as const;
-    return createSlotEntry(slot, properties[valueId] ?? '');
-  });
-}
-
 export default function ViewerScreen() {
   const { properties } = usePandaBridge();
-  const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const bridgeProperties = (properties ?? {}) as BridgeProperties;
-  const prefersBridge = hasBridgeLaunchData(bridgeProperties);
-  const rawScheme = cleanValue(bridgeProperties.scheme) || searchParams.get('scheme') || '';
+  const scheme = cleanValue(bridgeProperties.scheme) || 'pandasuite';
   const entries = useMemo(
-    () => buildEntries(bridgeProperties, searchParams, prefersBridge),
-    [bridgeProperties, prefersBridge, searchParams],
+    () => SLOT_NUMBERS.map((slot) => createSlotEntry(slot, bridgeProperties[`param${slot}`] ?? '')),
+    [bridgeProperties],
   );
   const filledParams = useMemo(() => getFilledParams(entries), [entries]);
-  const scheme = rawScheme || 'pandasuite';
   const deeplink = useMemo(() => buildViewerDeeplink(scheme, entries), [entries, scheme]);
-  const launcherHref = useMemo(() => toAbsoluteUrl(buildLauncherUrl(rawScheme, entries)), [entries, rawScheme]);
-  const opensLauncherExternally = prefersBridge || hasNativePandaHost();
+  const launcherHref = useMemo(() => toAbsoluteUrl(buildLauncherUrl(scheme, entries)), [entries, scheme]);
+  const opensLauncherExternally = hasNativePandaHost();
   const lastSnapshot = useRef<string | null>(null);
   const [lastUpdateIso, setLastUpdateIso] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
@@ -64,11 +51,7 @@ export default function ViewerScreen() {
   }, [deeplink, filledParams, lastUpdateIso, updateCount]);
 
   function openLauncher() {
-    if (opensLauncherExternally) {
-      openExternalUrl(launcherHref);
-      return;
-    }
-    window.location.href = launcherHref;
+    openExternalUrl(launcherHref);
   }
 
   return (
