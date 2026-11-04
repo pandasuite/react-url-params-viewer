@@ -5,3 +5,4 @@ pandasuite-component.zip
 .DS_Store
 *.tsbuildinfo
 .omc/
+/react-url-params-viewer-v*.zip

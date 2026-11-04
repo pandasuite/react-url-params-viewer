@@ -82,7 +82,7 @@ npm run build
 This creates:
 
 - `dist/` for GitHub Pages or any static hosting
-- `pandasuite-component.zip` to upload as a PandaSuite custom component release asset
+- `react-url-params-viewer-v<version>.zip` to upload as a PandaSuite custom component release asset
 
 ## PandaSuite setup
 
@@ -94,7 +94,7 @@ Use the project in two separate ways inside PandaSuite:
 You can integrate it in two different forms:
 
 - **Hosted URL**: use the deployed site, for example GitHub Pages
-- **ZIP package**: use `pandasuite-component.zip` when you want an offline import
+- **ZIP package**: use `react-url-params-viewer-v<version>.zip` when you want an offline import
 
 ### Recommended hosted setup
 
@@ -105,7 +105,7 @@ You can integrate it in two different forms:
 
 ### Recommended packaged setup
 
-1. Build the project to generate `pandasuite-component.zip`.
+1. Build the project to generate `react-url-params-viewer-v<version>.zip`.
 2. Import the ZIP where you need an offline package.
 3. If you use the ZIP for the Web component, open `index.html` with `?mode=launcher`.
 

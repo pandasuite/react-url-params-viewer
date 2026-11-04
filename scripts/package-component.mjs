@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs';
-import { access, rm } from 'node:fs/promises';
+import { access, readFile, readdir, rm } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
-const zipPath = path.join(rootDir, 'pandasuite-component.zip');
+const { version } = JSON.parse(await readFile(path.join(rootDir, 'package.json'), 'utf8'));
+const zipPath = path.join(rootDir, `react-url-params-viewer-v${version}.zip`);
 
 async function ensureDistExists() {
   try {
@@ -21,7 +22,11 @@ async function ensureDistExists() {
 
 async function packageComponent() {
   await ensureDistExists();
-  await rm(zipPath, { force: true });
+  for (const filename of await readdir(rootDir)) {
+    if (filename === 'pandasuite-component.zip' || /^react-url-params-viewer-v.*\.zip$/.test(filename)) {
+      await rm(path.join(rootDir, filename), { force: true });
+    }
+  }
 
   const output = createWriteStream(zipPath);
   const archive = archiver('zip', {
